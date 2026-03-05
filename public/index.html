@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>8-Bit 3v3 Arcade Hockey</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>8-Bit 3v3 Arcade Hockey</h1>
+      <p>Fill both benches (3v3) to start. Use joystick + action buttons.</p>
+    </header>
+
+    <section class="hud">
+      <div id="status">Connecting…</div>
+      <div id="scoreboard">
+        <span class="red">RED <strong id="score-red">0</strong></span>
+        <span class="clock" id="clock">03:00</span>
+        <span class="blue">BLU <strong id="score-blue">0</strong></span>
+      </div>
+    </section>
+
+    <canvas id="rink" width="1100" height="640" aria-label="Hockey rink"></canvas>
+
+    <section class="controls">
+      <div class="join-row">
+        <input id="name" maxlength="18" placeholder="Player name" />
+        <button id="join-btn">JOIN</button>
+      </div>
+
+      <div class="gamepad">
+        <div id="joystick-zone">
+          <div id="joystick-base">
+            <div id="joystick-knob"></div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="shoot-btn" class="action shoot">SHOOT</button>
+          <button id="steal-btn" class="action steal">STEAL</button>
+          <button id="hit-btn" class="action hit">HIT</button>
+        </div>
+      </div>
+
+      <p class="touch-hint">Power-ups: ⚡ speed burst, 🔥 heavy shot.</p>
+    </section>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>

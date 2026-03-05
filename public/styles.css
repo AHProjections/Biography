@@ -1,0 +1,158 @@
+:root {
+  color-scheme: dark;
+  font-family: "Press Start 2P", "Courier New", monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #0d1020;
+  color: #f6f8ff;
+  min-height: 100vh;
+}
+
+.app {
+  width: min(100%, 980px);
+  margin: 0 auto;
+  padding: 10px;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(1rem, 3vw, 1.5rem);
+  letter-spacing: 1px;
+  text-shadow: 2px 2px 0 #000;
+}
+
+header p {
+  margin: 8px 0 10px;
+  opacity: 0.85;
+  font-size: 0.65rem;
+  line-height: 1.4;
+}
+
+.hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+#status {
+  font-size: 0.62rem;
+  background: #1a2140;
+  border: 2px solid #33407b;
+  padding: 8px;
+}
+
+#scoreboard {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 2px solid #33407b;
+  background: #121a36;
+  font-size: 0.68rem;
+}
+
+.red { color: #ff6d7a; }
+.blue { color: #78b8ff; }
+.clock { color: #ffe082; }
+
+#rink {
+  width: 100%;
+  aspect-ratio: 1100 / 640;
+  border: 4px solid #f0f4ff;
+  image-rendering: pixelated;
+  touch-action: none;
+  background: #dceeff;
+}
+
+.controls { margin-top: 10px; }
+
+.join-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+input,
+button {
+  border: 2px solid #0a0d17;
+  border-radius: 0;
+  font-family: inherit;
+}
+
+input {
+  flex: 1;
+  padding: 10px;
+  font-size: 0.68rem;
+}
+
+button {
+  font-size: 0.68rem;
+  padding: 10px 12px;
+  color: #fff;
+  background: #3654c9;
+  text-shadow: 1px 1px #000;
+}
+
+button:active { transform: translateY(1px); }
+
+.gamepad {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+#joystick-zone {
+  width: 150px;
+  height: 150px;
+  touch-action: none;
+}
+
+#joystick-base {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 3px solid #f7fbff;
+  background: #182548;
+  position: relative;
+}
+
+#joystick-knob {
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 3px solid #09112a;
+  background: #8fb4ff;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: min(56vw, 360px);
+}
+
+.action.hit {
+  grid-column: 1 / span 2;
+  background: #ca3d52;
+}
+
+.action.shoot { background: #e08e2e; }
+.action.steal { background: #328e45; }
+
+.touch-hint {
+  margin-top: 10px;
+  font-size: 0.62rem;
+  opacity: 0.8;
+}

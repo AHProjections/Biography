@@ -1,0 +1,13 @@
+{
+  "name": "biography-hockey",
+  "version": "1.0.0",
+  "description": "3v3 multiplayer arcade hockey for mobile browsers",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
+}
