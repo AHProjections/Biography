@@ -19,6 +19,10 @@ Use this guide:
 Use this guide:
 - `docs/no_terminal_workflow.md`
 
+## Vercel deployment error help
+If Vercel fails to deploy, use:
+- `docs/vercel_deploy_troubleshooting.md`
+
 ## Local setup
 1. Install dependencies:
    ```bash
