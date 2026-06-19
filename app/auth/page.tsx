@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { createClient } from '@/lib/supabase/browser';
+import { createClient, getSupabaseBrowserConfigError } from '@/lib/supabase/browser';
 
 export default function AuthPage() {
   const [email, setEmail] = useState('');
@@ -9,18 +9,33 @@ export default function AuthPage() {
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const supabase = createClient();
+    setMessage('');
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+    const configError = getSupabaseBrowserConfigError();
+    if (configError) {
+      setMessage(configError);
+      return;
+    }
 
-    setMessage(
-      error ? `Unable to send magic link: ${error.message}` : 'Magic link sent. Check your inbox.',
-    );
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      setMessage(
+        error ? `Unable to send magic link: ${error.message}` : 'Magic link sent. Check your inbox.',
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? `Unable to send magic link: ${error.message}`
+          : 'Unable to send magic link. Check the Supabase settings in Vercel and Supabase Auth URL Configuration.',
+      );
+    }
   };
 
   return (
