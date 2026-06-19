@@ -4,9 +4,9 @@ export default function Home() {
   return (
     <main>
       <h1>Biography App Starter</h1>
-      <p>Start drafting a private biography outline. Notes are saved in this browser.</p>
+      <p>A voice-first interview studio for gathering life stories and shaping a draft.</p>
       <p>
-        <Link href="/dashboard">Open workspace</Link>
+        <Link href="/dashboard">Begin interview</Link>
       </p>
     </main>
   );
