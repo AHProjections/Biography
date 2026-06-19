@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 const LIFE_STAGES = ['childhood', 'education', 'career', 'relationships', 'turning_points'] as const;
 const CATEGORIES = ['milestone', 'challenge', 'achievement', 'reflection'] as const;
+const STORAGE_KEY = 'biography.notes.v1';
 
 type NoteState = {
   noteText: string;
@@ -35,44 +36,46 @@ function normalizeInitialNotes(rows: InitialRow[]): Record<string, NoteState> {
   return base;
 }
 
-export default function NotesAutosave({ initialNotes }: { initialNotes: InitialRow[] }) {
+function loadSavedNotes() {
+  if (typeof window === 'undefined') {
+    return normalizeInitialNotes([]);
+  }
+
+  try {
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    return saved ? (JSON.parse(saved) as Record<string, NoteState>) : normalizeInitialNotes([]);
+  } catch {
+    return normalizeInitialNotes([]);
+  }
+}
+
+export default function NotesAutosave() {
   const [selectedStage, setSelectedStage] = useState<string>(LIFE_STAGES[0]);
   const [notesByStage, setNotesByStage] = useState<Record<string, NoteState>>(
-    normalizeInitialNotes(initialNotes),
+    normalizeInitialNotes([]),
   );
   const [status, setStatus] = useState('Ready');
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(async () => {
-      const selected = notesByStage[selectedStage];
+    setNotesByStage(loadSavedNotes());
+    setIsLoaded(true);
+  }, []);
 
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    const timer = setTimeout(() => {
       try {
-        setStatus('Saving...');
-        const response = await fetch('/api/notes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            lifeStage: selectedStage,
-            noteText: selected.noteText,
-            category: selected.category,
-            eventYear: selected.eventYear ? Number(selected.eventYear) : null,
-          }),
-        });
-
-        if (!response.ok) {
-          const payload = (await response.json()) as { error?: string };
-          setStatus(`Save failed: ${payload.error ?? 'Unknown error'}`);
-          return;
-        }
-
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(notesByStage));
         setStatus(`Saved ${new Date().toLocaleTimeString()}`);
       } catch {
-        setStatus('Save failed: network error');
+        setStatus('Save failed: browser storage is unavailable');
       }
     }, 5000);
 
     return () => clearTimeout(timer);
-  }, [notesByStage, selectedStage]);
+  }, [isLoaded, notesByStage]);
 
   const current = notesByStage[selectedStage];
 
