@@ -2,33 +2,25 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-type ChapterId =
-  | 'origins'
-  | 'family'
-  | 'education'
-  | 'work'
-  | 'relationships'
-  | 'turning_points'
-  | 'values';
-
+type Phase = 'outline' | 'stories';
 type Question = {
   id: string;
-  chapter: ChapterId;
+  phase: Phase;
+  chapter: string;
   title: string;
   prompt: string;
   followUp: string;
 };
-
-type Answer = {
-  text: string;
-  updatedAt: string;
+type Answer = { text: string; updatedAt: string };
+type InterviewState = {
+  answers: Record<string, Answer>;
+  phase: Phase;
+  activeIndex: number;
 };
-
 type SpeechRecognitionEventResult = {
   isFinal: boolean;
   0: { transcript: string };
 };
-
 type SpeechRecognitionEventLike = {
   resultIndex: number;
   results: {
@@ -36,7 +28,6 @@ type SpeechRecognitionEventLike = {
     [index: number]: SpeechRecognitionEventResult;
   };
 };
-
 type SpeechRecognitionLike = {
   continuous: boolean;
   interimResults: boolean;
@@ -49,114 +40,98 @@ type SpeechRecognitionLike = {
   stop: () => void;
 };
 
-const STORAGE_KEY = 'biography.voiceStudio.v1';
+const STORAGE_KEY = 'biography.dynamicInterview.v1';
 
-const CHAPTERS: Record<ChapterId, { label: string; tone: string }> = {
-  origins: { label: 'Origins', tone: 'Place, time, early atmosphere' },
-  family: { label: 'Family', tone: 'People, traditions, home life' },
-  education: { label: 'Education', tone: 'Schooling, mentors, discoveries' },
-  work: { label: 'Work', tone: 'Ambition, craft, contribution' },
-  relationships: { label: 'Relationships', tone: 'Love, friendship, community' },
-  turning_points: { label: 'Turning points', tone: 'Choice, change, resilience' },
-  values: { label: 'Values', tone: 'Meaning, legacy, advice' },
-};
+const OUTLINE_QUESTIONS: Question[] = [
+  {
+    id: 'person_snapshot',
+    phase: 'outline',
+    chapter: 'Orientation',
+    title: 'Who is this life about?',
+    prompt:
+      'Before we get into stories, give me the broadest sketch. Who is this biography about, and what should a reader know at the outset?',
+    followUp:
+      'Include name, time period, places that matter, and the general feeling of the life.',
+  },
+  {
+    id: 'life_chapters',
+    phase: 'outline',
+    chapter: 'Life map',
+    title: 'Major chapters',
+    prompt:
+      'Walk me through the major chapters of this person’s life in order, almost like chapter titles on a timeline.',
+    followUp:
+      'Childhood, school, work, relationships, moves, losses, triumphs, reinventions: just the outline for now.',
+  },
+  {
+    id: 'important_people',
+    phase: 'outline',
+    chapter: 'Life map',
+    title: 'Important people',
+    prompt:
+      'Who are the people we will need to understand in order to understand this life?',
+    followUp:
+      'Name family, friends, partners, mentors, rivals, children, or anyone who changed the story.',
+  },
+  {
+    id: 'places',
+    phase: 'outline',
+    chapter: 'Life map',
+    title: 'Important places',
+    prompt:
+      'What places belong on the map of this life?',
+    followUp:
+      'Think homes, towns, schools, workplaces, landscapes, rooms, churches, hospitals, or journeys.',
+  },
+  {
+    id: 'turning_points',
+    phase: 'outline',
+    chapter: 'Life map',
+    title: 'Turning points',
+    prompt:
+      'What were the turning points: decisions, accidents, opportunities, losses, or moments after which life was different?',
+    followUp:
+      'A rough list is perfect. We will come back for the scenes and details next.',
+  },
+  {
+    id: 'themes',
+    phase: 'outline',
+    chapter: 'Meaning',
+    title: 'Core themes',
+    prompt:
+      'If this life has recurring themes, what are they?',
+    followUp:
+      'Examples might be duty, reinvention, faith, service, humor, survival, creativity, family, ambition, or forgiveness.',
+  },
+];
 
-const QUESTIONS: Question[] = [
+const FALLBACK_STORY_QUESTIONS: Question[] = [
   {
-    id: 'birthplace',
-    chapter: 'origins',
-    title: 'The opening scene',
+    id: 'story_earliest_scene',
+    phase: 'stories',
+    chapter: 'Origins',
+    title: 'Earliest vivid scene',
     prompt:
-      'Let us begin with the first scene. Where and when were you born, and what kind of world did you arrive into?',
-    followUp: 'What details would help someone picture that place clearly?',
+      'Choose one early-life moment that still feels vivid. What happened, where were they, and who was there?',
+    followUp: 'Give me sensory details and one small moment a reader could see.',
   },
   {
-    id: 'childhood_home',
-    chapter: 'origins',
-    title: 'Childhood home',
+    id: 'story_defining_relationship',
+    phase: 'stories',
+    chapter: 'Relationships',
+    title: 'Defining relationship',
     prompt:
-      'When you think of your childhood home, what do you see, hear, or smell first?',
-    followUp: 'Was there a room, street, routine, or season that feels especially vivid?',
+      'Choose one important relationship from the outline. Tell me the story of how it shaped this person.',
+    followUp: 'What did that person bring out in them?',
   },
   {
-    id: 'family_people',
-    chapter: 'family',
-    title: 'The family cast',
+    id: 'story_turning_point',
+    phase: 'stories',
+    chapter: 'Turning point',
+    title: 'One life-changing moment',
     prompt:
-      'Who were the central people in your family story, and what should a reader understand about each of them?',
-    followUp: 'Try naming one trait, phrase, or small habit that captures each person.',
-  },
-  {
-    id: 'family_lessons',
-    chapter: 'family',
-    title: 'Lessons at home',
-    prompt:
-      'What lessons, spoken or unspoken, did your family teach you about life?',
-    followUp: 'Did you accept those lessons, resist them, or reinterpret them later?',
-  },
-  {
-    id: 'school_years',
-    chapter: 'education',
-    title: 'Learning years',
-    prompt:
-      'Tell me about your school years. What kind of student were you, and what experiences shaped you?',
-    followUp: 'Was there a teacher, book, subject, or embarrassment you still remember?',
-  },
-  {
-    id: 'early_work',
-    chapter: 'work',
-    title: 'First work',
-    prompt:
-      'What was your first real work, paid or unpaid, and what did it teach you?',
-    followUp: 'How did that early work influence your confidence or sense of responsibility?',
-  },
-  {
-    id: 'career_arc',
-    chapter: 'work',
-    title: 'Career arc',
-    prompt:
-      'Looking across your working life, what were the main chapters, achievements, or changes?',
-    followUp: 'Which part of your work life made you proud in a quiet but lasting way?',
-  },
-  {
-    id: 'love_friendship',
-    chapter: 'relationships',
-    title: 'Love and friendship',
-    prompt:
-      'Who changed your life through love, friendship, partnership, or loyalty?',
-    followUp: 'What moments show the nature of that bond better than a summary could?',
-  },
-  {
-    id: 'hard_season',
-    chapter: 'turning_points',
-    title: 'A hard season',
-    prompt:
-      'Every life has difficult seasons. What was one hard period, and how did you get through it?',
-    followUp: 'What did that experience reveal about you or the people around you?',
-  },
-  {
-    id: 'major_choice',
-    chapter: 'turning_points',
-    title: 'A defining choice',
-    prompt:
-      'Tell me about a decision that changed the direction of your life.',
-    followUp: 'What did you know then, and what do you understand now?',
-  },
-  {
-    id: 'beliefs',
-    chapter: 'values',
-    title: 'What endured',
-    prompt:
-      'What values, beliefs, or principles have stayed with you through the years?',
-    followUp: 'Can you share a story where those values were tested or proven?',
-  },
-  {
-    id: 'legacy',
-    chapter: 'values',
-    title: 'Legacy',
-    prompt:
-      'If someone read your biography years from now, what would you most want them to feel or remember?',
-    followUp: 'What advice or blessing would you leave for the people who come after you?',
+      'Choose the most consequential turning point. What led up to it, what happened, and what changed afterward?',
+    followUp: 'What did they understand later that they could not know then?',
   },
 ];
 
@@ -170,14 +145,71 @@ function getRecognition() {
   return Recognition ? new Recognition() : null;
 }
 
-function loadAnswers(): Record<string, Answer> {
-  if (typeof window === 'undefined') return {};
+function loadState(): InterviewState {
+  if (typeof window === 'undefined') {
+    return { answers: {}, phase: 'outline', activeIndex: 0 };
+  }
+
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY);
-    return saved ? (JSON.parse(saved) as Record<string, Answer>) : {};
+    if (!saved) return { answers: {}, phase: 'outline', activeIndex: 0 };
+    const parsed = JSON.parse(saved) as Partial<InterviewState>;
+    return {
+      answers: parsed.answers ?? {},
+      phase: parsed.phase === 'stories' ? 'stories' : 'outline',
+      activeIndex: parsed.activeIndex ?? 0,
+    };
   } catch {
-    return {};
+    return { answers: {}, phase: 'outline', activeIndex: 0 };
   }
+}
+
+function splitIdeas(text: string) {
+  return text
+    .split(/\n|;|•|-/)
+    .flatMap((line) => line.split(/\.(?=\s+[A-Z0-9])/))
+    .map((line) => line.trim().replace(/^[0-9.)\s]+/, ''))
+    .filter((line) => line.length > 12)
+    .slice(0, 10);
+}
+
+function shortTitle(text: string) {
+  const trimmed = text.replace(/\s+/g, ' ').trim();
+  return trimmed.length > 44 ? `${trimmed.slice(0, 41)}...` : trimmed;
+}
+
+function inferChapter(text: string) {
+  const lower = text.toLowerCase();
+  if (/child|born|home|mother|father|family/.test(lower)) return 'Origins';
+  if (/school|college|teacher|learn/.test(lower)) return 'Education';
+  if (/work|job|career|business|service/.test(lower)) return 'Work';
+  if (/married|love|friend|child|daughter|son/.test(lower)) return 'Relationships';
+  if (/death|loss|move|war|illness|decision|changed/.test(lower)) return 'Turning point';
+  return 'Scene';
+}
+
+function buildStoryQuestions(answers: Record<string, Answer>): Question[] {
+  const sourceText = [
+    answers.life_chapters?.text,
+    answers.turning_points?.text,
+    answers.important_people?.text,
+    answers.places?.text,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const ideas = splitIdeas(sourceText);
+  if (ideas.length === 0) return FALLBACK_STORY_QUESTIONS;
+
+  return ideas.map((idea, index) => ({
+    id: `story_${index}_${idea.slice(0, 20).replace(/[^a-z0-9]+/gi, '_').toLowerCase()}`,
+    phase: 'stories',
+    chapter: inferChapter(idea),
+    title: shortTitle(idea),
+    prompt: `Let us slow down on this part of the life: “${idea}.” What happened, and why did it matter?`,
+    followUp:
+      'Tell it as a scene: where it happened, who was present, what was said, and what changed afterward.',
+  }));
 }
 
 function formatDate(value: string) {
@@ -189,32 +221,33 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function chapterQuestions(chapter: ChapterId) {
-  return QUESTIONS.filter((question) => question.chapter === chapter);
-}
+function buildDraft(answers: Record<string, Answer>, storyQuestions: Question[]) {
+  const outlineLines = OUTLINE_QUESTIONS.map((question) => {
+    const answer = answers[question.id]?.text.trim();
+    return answer ? `## ${question.title}\n\n${answer}` : '';
+  }).filter(Boolean);
 
-function buildDraft(answers: Record<string, Answer>) {
-  const sections = Object.entries(CHAPTERS)
-    .map(([chapterId, chapter]) => {
-      const lines = chapterQuestions(chapterId as ChapterId)
-        .map((question) => answers[question.id]?.text.trim())
-        .filter(Boolean);
+  const storyLines = storyQuestions.map((question) => {
+    const answer = answers[question.id]?.text.trim();
+    return answer ? `## ${question.title}\n\n${answer}` : '';
+  }).filter(Boolean);
 
-      if (lines.length === 0) return '';
-
-      return `## ${chapter.label}\n\n${lines.join('\n\n')}`;
-    })
-    .filter(Boolean);
-
-  if (sections.length === 0) {
-    return 'The biography draft will appear here as the interview fills in.';
+  if (outlineLines.length === 0 && storyLines.length === 0) {
+    return 'The biography draft will appear here as the life map and story scenes fill in.';
   }
 
-  return `# Biography Draft\n\n${sections.join('\n\n')}`;
+  return [
+    '# Biography Draft',
+    outlineLines.length ? '# Life Map\n\n' + outlineLines.join('\n\n') : '',
+    storyLines.length ? '# Story Scenes\n\n' + storyLines.join('\n\n') : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 export default function NotesAutosave() {
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
+  const [phase, setPhase] = useState<Phase>('outline');
   const [activeIndex, setActiveIndex] = useState(0);
   const [draftMode, setDraftMode] = useState(false);
   const [answerText, setAnswerText] = useState('');
@@ -223,13 +256,21 @@ export default function NotesAutosave() {
   const [voiceSupported, setVoiceSupported] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
-  const activeQuestion = QUESTIONS[activeIndex];
-  const answeredCount = Object.keys(answers).filter((id) => answers[id]?.text.trim()).length;
-  const progress = Math.round((answeredCount / QUESTIONS.length) * 100);
-  const draft = useMemo(() => buildDraft(answers), [answers]);
+  const storyQuestions = useMemo(() => buildStoryQuestions(answers), [answers]);
+  const questions = phase === 'outline' ? OUTLINE_QUESTIONS : storyQuestions;
+  const activeQuestion = questions[Math.min(activeIndex, questions.length - 1)];
+  const outlineCount = OUTLINE_QUESTIONS.filter((question) => answers[question.id]?.text.trim()).length;
+  const storyCount = storyQuestions.filter((question) => answers[question.id]?.text.trim()).length;
+  const progress = Math.round(
+    ((outlineCount + storyCount) / (OUTLINE_QUESTIONS.length + storyQuestions.length)) * 100,
+  );
+  const draft = useMemo(() => buildDraft(answers, storyQuestions), [answers, storyQuestions]);
 
   useEffect(() => {
-    setAnswers(loadAnswers());
+    const saved = loadState();
+    setAnswers(saved.answers);
+    setPhase(saved.phase);
+    setActiveIndex(saved.activeIndex);
     setVoiceSupported(Boolean(getRecognition()));
   }, []);
 
@@ -240,7 +281,10 @@ export default function NotesAutosave() {
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(answers));
+        window.localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ answers, phase, activeIndex } satisfies InterviewState),
+        );
         setStatus(`Saved ${new Date().toLocaleTimeString()}`);
       } catch {
         setStatus('Browser storage unavailable');
@@ -248,7 +292,7 @@ export default function NotesAutosave() {
     }, 600);
 
     return () => clearTimeout(timer);
-  }, [answers]);
+  }, [activeIndex, answers, phase]);
 
   function saveAnswer(nextText = answerText) {
     setAnswers((previous) => ({
@@ -260,12 +304,19 @@ export default function NotesAutosave() {
     }));
   }
 
+  function setInterviewPhase(nextPhase: Phase) {
+    saveAnswer();
+    setPhase(nextPhase);
+    setActiveIndex(0);
+    setDraftMode(false);
+  }
+
   function moveQuestion(direction: 1 | -1) {
     saveAnswer();
     setActiveIndex((current) => {
       const next = current + direction;
-      if (next < 0) return QUESTIONS.length - 1;
-      if (next >= QUESTIONS.length) return 0;
+      if (next < 0) return questions.length - 1;
+      if (next >= questions.length) return 0;
       return next;
     });
     setDraftMode(false);
@@ -364,24 +415,21 @@ export default function NotesAutosave() {
     <section className="studio-shell">
       <header className="studio-hero">
         <div>
-          <p className="eyebrow">Voice-first biographer</p>
-          <h1>Tell the story in conversation.</h1>
+          <p className="eyebrow">Dynamic biographer</p>
+          <h1>Map the life, then find the scenes.</h1>
           <p className="hero-copy">
-            A guided interview organizes memories into chapters and turns them into a working draft.
+            Start with the major outline. Once the structure appears, the interview creates
+            deeper story prompts from the people, places, and turning points you named.
           </p>
         </div>
         <div className="progress-orbit" aria-label={`${progress}% complete`}>
           <span>{progress}%</span>
-          <small>{answeredCount}/{QUESTIONS.length}</small>
+          <small>{outlineCount}+{storyCount}</small>
         </div>
       </header>
 
       <div className="mode-tabs" role="tablist" aria-label="Workspace views">
-        <button
-          className={!draftMode ? 'active' : ''}
-          type="button"
-          onClick={() => setDraftMode(false)}
-        >
+        <button className={!draftMode ? 'active' : ''} type="button" onClick={() => setDraftMode(false)}>
           Interview
         </button>
         <button
@@ -405,12 +453,8 @@ export default function NotesAutosave() {
                 <h2>Biography draft</h2>
               </div>
               <div className="button-row">
-                <button type="button" onClick={copyDraft}>
-                  Copy
-                </button>
-                <button type="button" onClick={downloadDraft}>
-                  Download
-                </button>
+                <button type="button" onClick={copyDraft}>Copy</button>
+                <button type="button" onClick={downloadDraft}>Download</button>
               </div>
             </div>
             <pre className="draft-text">{draft}</pre>
@@ -418,40 +462,52 @@ export default function NotesAutosave() {
         </div>
       ) : (
         <div className="interview-layout">
-          <aside className="chapter-rail" aria-label="Interview chapters">
-            {Object.entries(CHAPTERS).map(([chapterId, chapter]) => {
-              const questions = chapterQuestions(chapterId as ChapterId);
-              const completed = questions.filter((question) => answers[question.id]?.text.trim()).length;
+          <aside className="chapter-rail" aria-label="Interview phases">
+            <div className="phase-card">
+              <p className="eyebrow">Phase</p>
+              <button
+                className={phase === 'outline' ? 'question-pill active' : 'question-pill'}
+                type="button"
+                onClick={() => setInterviewPhase('outline')}
+              >
+                1. Life Map ({outlineCount}/{OUTLINE_QUESTIONS.length})
+              </button>
+              <button
+                className={phase === 'stories' ? 'question-pill active' : 'question-pill'}
+                type="button"
+                onClick={() => setInterviewPhase('stories')}
+              >
+                2. Story Scenes ({storyCount}/{storyQuestions.length})
+              </button>
+            </div>
 
-              return (
-                <div className="chapter-group" key={chapterId}>
-                  <div className="chapter-heading">
-                    <strong>{chapter.label}</strong>
-                    <span>{completed}/{questions.length}</span>
-                  </div>
-                  <p>{chapter.tone}</p>
-                  {questions.map((question) => {
-                    const index = QUESTIONS.findIndex((item) => item.id === question.id);
-                    return (
-                      <button
-                        className={index === activeIndex ? 'question-pill active' : 'question-pill'}
-                        key={question.id}
-                        type="button"
-                        onClick={() => selectQuestion(index)}
-                      >
-                        {question.title}
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })}
+            <div className="chapter-group">
+              <div className="chapter-heading">
+                <strong>{phase === 'outline' ? 'Outline questions' : 'Generated story prompts'}</strong>
+                <span>{questions.length}</span>
+              </div>
+              <p>
+                {phase === 'outline'
+                  ? 'Capture the broad skeleton first.'
+                  : 'These are built from the outline you provided.'}
+              </p>
+              {questions.map((question, index) => (
+                <button
+                  className={index === activeIndex ? 'question-pill active' : 'question-pill'}
+                  key={question.id}
+                  type="button"
+                  onClick={() => selectQuestion(index)}
+                >
+                  {question.title}
+                </button>
+              ))}
+            </div>
           </aside>
 
           <section className="interview-panel" aria-label="Current interview question">
             <div className="panel-heading">
               <div>
-                <p className="eyebrow">{CHAPTERS[activeQuestion.chapter].label}</p>
+                <p className="eyebrow">{activeQuestion.chapter}</p>
                 <h2>{activeQuestion.title}</h2>
               </div>
               <span className="save-state">{status}</span>
@@ -461,9 +517,7 @@ export default function NotesAutosave() {
             <p className="follow-up">{activeQuestion.followUp}</p>
 
             <div className="voice-console">
-              <button type="button" onClick={speakPrompt}>
-                Hear prompt
-              </button>
+              <button type="button" onClick={speakPrompt}>Hear prompt</button>
               <button
                 className={isListening ? 'danger' : 'primary'}
                 type="button"
@@ -486,35 +540,40 @@ export default function NotesAutosave() {
             />
 
             <div className="navigation-row">
-              <button type="button" onClick={() => moveQuestion(-1)}>
-                Previous
-              </button>
-              <button type="button" onClick={() => moveQuestion(1)}>
-                Next question
-              </button>
+              <button type="button" onClick={() => moveQuestion(-1)}>Previous</button>
+              <button type="button" onClick={() => moveQuestion(1)}>Next question</button>
             </div>
           </section>
 
-          <aside className="memory-board" aria-label="Organized memories">
+          <aside className="memory-board" aria-label="Organized life structure">
             <div className="panel-heading">
               <div>
-                <p className="eyebrow">Organized material</p>
-                <h2>Memory cards</h2>
+                <p className="eyebrow">Structure</p>
+                <h2>Life map</h2>
               </div>
             </div>
             <div className="memory-list">
-              {QUESTIONS.filter((question) => answers[question.id]?.text.trim()).length === 0 ? (
-                <p className="empty-state">Answered memories will collect here by chapter.</p>
-              ) : (
-                QUESTIONS.filter((question) => answers[question.id]?.text.trim()).map((question) => (
+              {OUTLINE_QUESTIONS.map((question) => {
+                const answer = answers[question.id];
+                return (
                   <article className="memory-card" key={question.id}>
-                    <span>{CHAPTERS[question.chapter].label}</span>
+                    <span>{question.chapter}</span>
                     <h3>{question.title}</h3>
-                    <p>{answers[question.id].text}</p>
-                    <small>{formatDate(answers[question.id].updatedAt)}</small>
+                    <p>{answer?.text || 'Waiting for outline...'}</p>
+                    {answer ? <small>{formatDate(answer.updatedAt)}</small> : null}
                   </article>
-                ))
-              )}
+                );
+              })}
+              {phase === 'stories' ? (
+                <article className="memory-card emphasis">
+                  <span>Next layer</span>
+                  <h3>{storyQuestions.length} story prompts generated</h3>
+                  <p>
+                    The app is now asking for specific scenes, conflict, dialogue,
+                    sensory details, and meaning from the outline.
+                  </p>
+                </article>
+              ) : null}
             </div>
           </aside>
         </div>
