@@ -40,98 +40,101 @@ type SpeechRecognitionLike = {
   stop: () => void;
 };
 
-const STORAGE_KEY = 'biography.dynamicInterview.v1';
+const STORAGE_KEY = 'biography.simpleChat.v1';
 
 const OUTLINE_QUESTIONS: Question[] = [
   {
     id: 'person_snapshot',
     phase: 'outline',
-    chapter: 'Orientation',
-    title: 'Who is this life about?',
+    chapter: 'Getting started',
+    title: 'Who are we writing about?',
     prompt:
-      'Before we get into stories, give me the broadest sketch. Who is this biography about, and what should a reader know at the outset?',
+      'Let us start simply. Who is this biography about, and what should I know first?',
     followUp:
-      'Include name, time period, places that matter, and the general feeling of the life.',
+      'You can include their name, where they are from, and the kind of person they are.',
   },
   {
     id: 'life_chapters',
     phase: 'outline',
-    chapter: 'Life map',
-    title: 'Major chapters',
+    chapter: 'Big picture',
+    title: 'What are the main chapters?',
     prompt:
-      'Walk me through the major chapters of this person’s life in order, almost like chapter titles on a timeline.',
+      'If you think about their whole life, what are the big chapters from beginning to now?',
     followUp:
-      'Childhood, school, work, relationships, moves, losses, triumphs, reinventions: just the outline for now.',
+      'Childhood, school, work, family, moves, hard times, proud moments - just the big pieces.',
   },
   {
     id: 'important_people',
     phase: 'outline',
-    chapter: 'Life map',
-    title: 'Important people',
+    chapter: 'People',
+    title: 'Who mattered most?',
     prompt:
-      'Who are the people we will need to understand in order to understand this life?',
+      'Who are the important people in this life story?',
     followUp:
-      'Name family, friends, partners, mentors, rivals, children, or anyone who changed the story.',
+      'Family, friends, partners, children, teachers, neighbors, or anyone who changed things.',
   },
   {
     id: 'places',
     phase: 'outline',
-    chapter: 'Life map',
-    title: 'Important places',
+    chapter: 'Places',
+    title: 'What places mattered?',
     prompt:
-      'What places belong on the map of this life?',
+      'What places should be part of the story?',
     followUp:
-      'Think homes, towns, schools, workplaces, landscapes, rooms, churches, hospitals, or journeys.',
+      'Homes, towns, schools, workplaces, churches, kitchens, gardens, trips, or special rooms.',
   },
   {
     id: 'turning_points',
     phase: 'outline',
-    chapter: 'Life map',
-    title: 'Turning points',
+    chapter: 'Turning points',
+    title: 'What changed everything?',
     prompt:
-      'What were the turning points: decisions, accidents, opportunities, losses, or moments after which life was different?',
+      'What were the moments when life changed direction?',
     followUp:
-      'A rough list is perfect. We will come back for the scenes and details next.',
+      'These can be choices, losses, moves, opportunities, illnesses, marriages, births, or surprises.',
   },
   {
     id: 'themes',
     phase: 'outline',
     chapter: 'Meaning',
-    title: 'Core themes',
+    title: 'What is the heart of the story?',
     prompt:
-      'If this life has recurring themes, what are they?',
+      'When you think about this life, what themes keep coming up?',
     followUp:
-      'Examples might be duty, reinvention, faith, service, humor, survival, creativity, family, ambition, or forgiveness.',
+      'Love, grit, faith, humor, family, service, reinvention, sacrifice, joy, or anything else.',
   },
 ];
 
 const FALLBACK_STORY_QUESTIONS: Question[] = [
   {
-    id: 'story_earliest_scene',
+    id: 'story_early_memory',
     phase: 'stories',
-    chapter: 'Origins',
-    title: 'Earliest vivid scene',
+    chapter: 'A story',
+    title: 'An early memory',
     prompt:
-      'Choose one early-life moment that still feels vivid. What happened, where were they, and who was there?',
-    followUp: 'Give me sensory details and one small moment a reader could see.',
+      'Tell me one early memory that would help a reader picture this person as a child.',
+    followUp:
+      'What happened? Who was there? What did it feel like?',
   },
   {
-    id: 'story_defining_relationship',
+    id: 'story_person',
     phase: 'stories',
-    chapter: 'Relationships',
-    title: 'Defining relationship',
+    chapter: 'A story',
+    title: 'Someone important',
     prompt:
-      'Choose one important relationship from the outline. Tell me the story of how it shaped this person.',
-    followUp: 'What did that person bring out in them?',
+      'Tell me a story about one person who mattered deeply.',
+    followUp:
+      'What did that person bring into the life story?',
   },
   {
     id: 'story_turning_point',
     phase: 'stories',
-    chapter: 'Turning point',
-    title: 'One life-changing moment',
+    chapter: 'A story',
+    title: 'A turning point',
     prompt:
-      'Choose the most consequential turning point. What led up to it, what happened, and what changed afterward?',
-    followUp: 'What did they understand later that they could not know then?',
+      'Tell me the story of one moment when life changed.',
+    followUp:
+      'What led up to it, what happened, and what changed afterward?',
   },
 ];
 
@@ -166,26 +169,16 @@ function loadState(): InterviewState {
 
 function splitIdeas(text: string) {
   return text
-    .split(/\n|;|•|-/)
+    .split(/\n|;|-/)
     .flatMap((line) => line.split(/\.(?=\s+[A-Z0-9])/))
     .map((line) => line.trim().replace(/^[0-9.)\s]+/, ''))
     .filter((line) => line.length > 12)
-    .slice(0, 10);
+    .slice(0, 8);
 }
 
 function shortTitle(text: string) {
   const trimmed = text.replace(/\s+/g, ' ').trim();
-  return trimmed.length > 44 ? `${trimmed.slice(0, 41)}...` : trimmed;
-}
-
-function inferChapter(text: string) {
-  const lower = text.toLowerCase();
-  if (/child|born|home|mother|father|family/.test(lower)) return 'Origins';
-  if (/school|college|teacher|learn/.test(lower)) return 'Education';
-  if (/work|job|career|business|service/.test(lower)) return 'Work';
-  if (/married|love|friend|child|daughter|son/.test(lower)) return 'Relationships';
-  if (/death|loss|move|war|illness|decision|changed/.test(lower)) return 'Turning point';
-  return 'Scene';
+  return trimmed.length > 46 ? `${trimmed.slice(0, 43)}...` : trimmed;
 }
 
 function buildStoryQuestions(answers: Record<string, Answer>): Question[] {
@@ -202,13 +195,13 @@ function buildStoryQuestions(answers: Record<string, Answer>): Question[] {
   if (ideas.length === 0) return FALLBACK_STORY_QUESTIONS;
 
   return ideas.map((idea, index) => ({
-    id: `story_${index}_${idea.slice(0, 20).replace(/[^a-z0-9]+/gi, '_').toLowerCase()}`,
+    id: `story_${index}_${idea.slice(0, 18).replace(/[^a-z0-9]+/gi, '_').toLowerCase()}`,
     phase: 'stories',
-    chapter: inferChapter(idea),
+    chapter: 'A story',
     title: shortTitle(idea),
-    prompt: `Let us slow down on this part of the life: “${idea}.” What happened, and why did it matter?`,
+    prompt: `I would love to hear more about this: "${idea}." What is the story there?`,
     followUp:
-      'Tell it as a scene: where it happened, who was present, what was said, and what changed afterward.',
+      'Please tell it like a memory. Where were they, who was there, and what changed?',
   }));
 }
 
@@ -222,24 +215,24 @@ function formatDate(value: string) {
 }
 
 function buildDraft(answers: Record<string, Answer>, storyQuestions: Question[]) {
-  const outlineLines = OUTLINE_QUESTIONS.map((question) => {
+  const outline = OUTLINE_QUESTIONS.map((question) => {
     const answer = answers[question.id]?.text.trim();
     return answer ? `## ${question.title}\n\n${answer}` : '';
   }).filter(Boolean);
 
-  const storyLines = storyQuestions.map((question) => {
+  const stories = storyQuestions.map((question) => {
     const answer = answers[question.id]?.text.trim();
     return answer ? `## ${question.title}\n\n${answer}` : '';
   }).filter(Boolean);
 
-  if (outlineLines.length === 0 && storyLines.length === 0) {
-    return 'The biography draft will appear here as the life map and story scenes fill in.';
+  if (outline.length === 0 && stories.length === 0) {
+    return 'The biography will appear here after a few answers are saved.';
   }
 
   return [
-    '# Biography Draft',
-    outlineLines.length ? '# Life Map\n\n' + outlineLines.join('\n\n') : '',
-    storyLines.length ? '# Story Scenes\n\n' + storyLines.join('\n\n') : '',
+    '# Biography Notes',
+    outline.length ? '# Life Outline\n\n' + outline.join('\n\n') : '',
+    stories.length ? '# Specific Stories\n\n' + stories.join('\n\n') : '',
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -249,11 +242,11 @@ export default function NotesAutosave() {
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [phase, setPhase] = useState<Phase>('outline');
   const [activeIndex, setActiveIndex] = useState(0);
-  const [draftMode, setDraftMode] = useState(false);
   const [answerText, setAnswerText] = useState('');
   const [status, setStatus] = useState('Ready');
   const [isListening, setIsListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   const storyQuestions = useMemo(() => buildStoryQuestions(answers), [answers]);
@@ -261,9 +254,7 @@ export default function NotesAutosave() {
   const activeQuestion = questions[Math.min(activeIndex, questions.length - 1)];
   const outlineCount = OUTLINE_QUESTIONS.filter((question) => answers[question.id]?.text.trim()).length;
   const storyCount = storyQuestions.filter((question) => answers[question.id]?.text.trim()).length;
-  const progress = Math.round(
-    ((outlineCount + storyCount) / (OUTLINE_QUESTIONS.length + storyQuestions.length)) * 100,
-  );
+  const totalCount = outlineCount + storyCount;
   const draft = useMemo(() => buildDraft(answers, storyQuestions), [answers, storyQuestions]);
 
   useEffect(() => {
@@ -285,52 +276,60 @@ export default function NotesAutosave() {
           STORAGE_KEY,
           JSON.stringify({ answers, phase, activeIndex } satisfies InterviewState),
         );
-        setStatus(`Saved ${new Date().toLocaleTimeString()}`);
+        setStatus('Saved');
       } catch {
-        setStatus('Browser storage unavailable');
+        setStatus('Not saved');
       }
-    }, 600);
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [activeIndex, answers, phase]);
 
   function saveAnswer(nextText = answerText) {
+    const cleanText = nextText.trim();
+    if (!cleanText) return;
+
     setAnswers((previous) => ({
       ...previous,
       [activeQuestion.id]: {
-        text: nextText,
+        text: cleanText,
         updatedAt: new Date().toISOString(),
       },
     }));
   }
 
-  function setInterviewPhase(nextPhase: Phase) {
+  function continueInterview() {
     saveAnswer();
-    setPhase(nextPhase);
-    setActiveIndex(0);
-    setDraftMode(false);
+
+    if (activeIndex < questions.length - 1) {
+      setActiveIndex((current) => current + 1);
+      return;
+    }
+
+    if (phase === 'outline') {
+      setPhase('stories');
+      setActiveIndex(0);
+      return;
+    }
+
+    setMenuOpen(true);
   }
 
-  function moveQuestion(direction: 1 | -1) {
+  function goBack() {
     saveAnswer();
-    setActiveIndex((current) => {
-      const next = current + direction;
-      if (next < 0) return questions.length - 1;
-      if (next >= questions.length) return 0;
-      return next;
-    });
-    setDraftMode(false);
-  }
-
-  function selectQuestion(index: number) {
-    saveAnswer();
-    setActiveIndex(index);
-    setDraftMode(false);
+    if (activeIndex > 0) {
+      setActiveIndex((current) => current - 1);
+      return;
+    }
+    if (phase === 'stories') {
+      setPhase('outline');
+      setActiveIndex(OUTLINE_QUESTIONS.length - 1);
+    }
   }
 
   function speakPrompt() {
     if (!('speechSynthesis' in window)) {
-      setStatus('Spoken prompts are not available in this browser');
+      setStatus('Speech is not available');
       return;
     }
 
@@ -338,8 +337,8 @@ export default function NotesAutosave() {
     const utterance = new SpeechSynthesisUtterance(
       `${activeQuestion.prompt} ${activeQuestion.followUp}`,
     );
-    utterance.rate = 0.88;
-    utterance.pitch = 0.92;
+    utterance.rate = 0.86;
+    utterance.pitch = 0.94;
     window.speechSynthesis.speak(utterance);
   }
 
@@ -351,7 +350,7 @@ export default function NotesAutosave() {
 
     const recognition = getRecognition();
     if (!recognition) {
-      setStatus('Voice dictation is not available in this browser');
+      setStatus('Please type instead');
       setVoiceSupported(false);
       return;
     }
@@ -365,11 +364,11 @@ export default function NotesAutosave() {
     };
     recognition.onend = () => {
       setIsListening(false);
-      setStatus('Paused');
+      setStatus('Saved');
     };
     recognition.onerror = () => {
       setIsListening(false);
-      setStatus('Voice capture stopped');
+      setStatus('Please try again');
     };
     recognition.onresult = (event) => {
       let finalText = '';
@@ -397,7 +396,7 @@ export default function NotesAutosave() {
   function copyDraft() {
     navigator.clipboard
       .writeText(draft)
-      .then(() => setStatus('Draft copied'))
+      .then(() => setStatus('Biography copied'))
       .catch(() => setStatus('Copy failed'));
   }
 
@@ -406,178 +405,125 @@ export default function NotesAutosave() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'biography-draft.md';
+    link.download = 'biography-notes.md';
     link.click();
     URL.revokeObjectURL(url);
   }
 
+  const savedQuestions = [...OUTLINE_QUESTIONS, ...storyQuestions].filter(
+    (question) => answers[question.id]?.text.trim(),
+  );
+
   return (
-    <section className="studio-shell">
-      <header className="studio-hero">
+    <section className="chat-shell">
+      <header className="chat-topbar">
         <div>
-          <p className="eyebrow">Dynamic biographer</p>
-          <h1>Map the life, then find the scenes.</h1>
-          <p className="hero-copy">
-            Start with the major outline. Once the structure appears, the interview creates
-            deeper story prompts from the people, places, and turning points you named.
-          </p>
+          <p className="eyebrow">Grandma&apos;s biography helper</p>
+          <h1>Let&apos;s talk through her story.</h1>
         </div>
-        <div className="progress-orbit" aria-label={`${progress}% complete`}>
-          <span>{progress}%</span>
-          <small>{outlineCount}+{storyCount}</small>
-        </div>
+        <button type="button" onClick={() => setMenuOpen(true)}>
+          Menu
+        </button>
       </header>
 
-      <div className="mode-tabs" role="tablist" aria-label="Workspace views">
-        <button className={!draftMode ? 'active' : ''} type="button" onClick={() => setDraftMode(false)}>
-          Interview
-        </button>
-        <button
-          className={draftMode ? 'active' : ''}
-          type="button"
-          onClick={() => {
-            saveAnswer();
-            setDraftMode(true);
+      <main className="chat-card">
+        <div className="chat-progress">
+          <span>{phase === 'outline' ? 'First, the big picture' : 'Now, the meaningful stories'}</span>
+          <strong>{totalCount} saved</strong>
+        </div>
+
+        <div className="chat-bubble interviewer">
+          <span>{activeQuestion.chapter}</span>
+          <p>{activeQuestion.prompt}</p>
+          <small>{activeQuestion.followUp}</small>
+        </div>
+
+        <div className="chat-actions" aria-label="Voice controls">
+          <button type="button" onClick={speakPrompt}>
+            Read question
+          </button>
+          <button
+            className={isListening ? 'danger' : 'primary'}
+            type="button"
+            onClick={toggleListening}
+          >
+            {isListening ? 'Stop' : 'Start talking'}
+          </button>
+        </div>
+
+        <label className="answer-label" htmlFor="answer">
+          {voiceSupported ? 'What she says will appear here.' : 'Type the answer here.'}
+        </label>
+        <textarea
+          id="answer"
+          value={answerText}
+          onChange={(event) => {
+            setAnswerText(event.target.value);
+            saveAnswer(event.target.value);
           }}
-        >
-          Draft
-        </button>
-      </div>
+          placeholder="Her answer..."
+          rows={8}
+        />
 
-      {draftMode ? (
-        <div className="draft-layout">
-          <section className="draft-panel" aria-label="Generated biography draft">
-            <div className="panel-heading">
-              <div>
-                <p className="eyebrow">Working manuscript</p>
-                <h2>Biography draft</h2>
-              </div>
-              <div className="button-row">
-                <button type="button" onClick={copyDraft}>Copy</button>
-                <button type="button" onClick={downloadDraft}>Download</button>
-              </div>
-            </div>
-            <pre className="draft-text">{draft}</pre>
-          </section>
+        <div className="chat-footer">
+          <button type="button" onClick={goBack}>
+            Back
+          </button>
+          <span>{status}</span>
+          <button className="primary" type="button" onClick={continueInterview}>
+            Save and keep going
+          </button>
         </div>
-      ) : (
-        <div className="interview-layout">
-          <aside className="chapter-rail" aria-label="Interview phases">
-            <div className="phase-card">
-              <p className="eyebrow">Phase</p>
-              <button
-                className={phase === 'outline' ? 'question-pill active' : 'question-pill'}
-                type="button"
-                onClick={() => setInterviewPhase('outline')}
-              >
-                1. Life Map ({outlineCount}/{OUTLINE_QUESTIONS.length})
-              </button>
-              <button
-                className={phase === 'stories' ? 'question-pill active' : 'question-pill'}
-                type="button"
-                onClick={() => setInterviewPhase('stories')}
-              >
-                2. Story Scenes ({storyCount}/{storyQuestions.length})
-              </button>
-            </div>
+      </main>
 
-            <div className="chapter-group">
-              <div className="chapter-heading">
-                <strong>{phase === 'outline' ? 'Outline questions' : 'Generated story prompts'}</strong>
-                <span>{questions.length}</span>
-              </div>
-              <p>
-                {phase === 'outline'
-                  ? 'Capture the broad skeleton first.'
-                  : 'These are built from the outline you provided.'}
-              </p>
-              {questions.map((question, index) => (
-                <button
-                  className={index === activeIndex ? 'question-pill active' : 'question-pill'}
-                  key={question.id}
-                  type="button"
-                  onClick={() => selectQuestion(index)}
-                >
-                  {question.title}
-                </button>
-              ))}
-            </div>
-          </aside>
-
-          <section className="interview-panel" aria-label="Current interview question">
-            <div className="panel-heading">
+      {menuOpen ? (
+        <div className="drawer-backdrop" role="presentation">
+          <aside className="story-drawer" aria-label="Biography menu">
+            <div className="drawer-heading">
               <div>
-                <p className="eyebrow">{activeQuestion.chapter}</p>
-                <h2>{activeQuestion.title}</h2>
+                <p className="eyebrow">Saved so far</p>
+                <h2>Biography menu</h2>
               </div>
-              <span className="save-state">{status}</span>
-            </div>
-
-            <blockquote>{activeQuestion.prompt}</blockquote>
-            <p className="follow-up">{activeQuestion.followUp}</p>
-
-            <div className="voice-console">
-              <button type="button" onClick={speakPrompt}>Hear prompt</button>
-              <button
-                className={isListening ? 'danger' : 'primary'}
-                type="button"
-                onClick={toggleListening}
-              >
-                {isListening ? 'Stop recording' : 'Record answer'}
+              <button type="button" onClick={() => setMenuOpen(false)}>
+                Close
               </button>
-              <span>{voiceSupported ? 'Voice ready' : 'Type instead'}</span>
             </div>
 
-            <textarea
-              aria-label="Answer text"
-              value={answerText}
-              onChange={(event) => {
-                setAnswerText(event.target.value);
-                saveAnswer(event.target.value);
-              }}
-              placeholder="Speak or type the answer here..."
-              rows={10}
-            />
-
-            <div className="navigation-row">
-              <button type="button" onClick={() => moveQuestion(-1)}>Previous</button>
-              <button type="button" onClick={() => moveQuestion(1)}>Next question</button>
-            </div>
-          </section>
-
-          <aside className="memory-board" aria-label="Organized life structure">
-            <div className="panel-heading">
-              <div>
-                <p className="eyebrow">Structure</p>
-                <h2>Life map</h2>
+            <section>
+              <h3>Recorded answers</h3>
+              <div className="memory-list">
+                {savedQuestions.length === 0 ? (
+                  <p className="empty-state">Nothing saved yet. Answer the first question to begin.</p>
+                ) : (
+                  savedQuestions.map((question) => (
+                    <article className="memory-card" key={question.id}>
+                      <span>{question.phase === 'outline' ? 'Outline' : 'Story'}</span>
+                      <h4>{question.title}</h4>
+                      <p>{answers[question.id].text}</p>
+                      <small>{formatDate(answers[question.id].updatedAt)}</small>
+                    </article>
+                  ))
+                )}
               </div>
-            </div>
-            <div className="memory-list">
-              {OUTLINE_QUESTIONS.map((question) => {
-                const answer = answers[question.id];
-                return (
-                  <article className="memory-card" key={question.id}>
-                    <span>{question.chapter}</span>
-                    <h3>{question.title}</h3>
-                    <p>{answer?.text || 'Waiting for outline...'}</p>
-                    {answer ? <small>{formatDate(answer.updatedAt)}</small> : null}
-                  </article>
-                );
-              })}
-              {phase === 'stories' ? (
-                <article className="memory-card emphasis">
-                  <span>Next layer</span>
-                  <h3>{storyQuestions.length} story prompts generated</h3>
-                  <p>
-                    The app is now asking for specific scenes, conflict, dialogue,
-                    sensory details, and meaning from the outline.
-                  </p>
-                </article>
-              ) : null}
-            </div>
+            </section>
+
+            <section>
+              <div className="drawer-heading compact">
+                <h3>Biography draft</h3>
+                <div className="button-row">
+                  <button type="button" onClick={copyDraft}>
+                    Copy
+                  </button>
+                  <button type="button" onClick={downloadDraft}>
+                    Download
+                  </button>
+                </div>
+              </div>
+              <pre className="draft-text">{draft}</pre>
+            </section>
           </aside>
         </div>
-      )}
+      ) : null}
     </section>
   );
 }
