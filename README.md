@@ -11,6 +11,14 @@ This is the first implementation step for the biography app using the confirmed 
 If you want a click-by-click guide, start here:
 - `docs/first_time_setup.md`
 
+## Want a live website?
+Use this guide:
+- `docs/vercel_deploy_troubleshooting.md`
+
+If Vercel reports `Configuring Next.js via 'next.config.ts' is not supported`,
+redeploy the newest `main` commit. This repo uses `next.config.mjs`, and the
+build fails early if `next.config.ts` comes back.
+
 ## Local setup
 1. Install dependencies:
    ```bash
